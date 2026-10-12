@@ -11,6 +11,7 @@ import express from "express";
 
 import config from "./config";
 import indexRoutes from "./routes/index.routes";
+import createRoom from "./routes/createRoom.routes";
 import errorHandling from "./error-handling";
 
 const app = express();
@@ -20,6 +21,7 @@ config(app);
 
 // 👇 Start handling routes here
 app.use("/api", indexRoutes);
+app.use("/api/create-room", createRoom);
 
 // ❗ To handle errors. Routes that don't exist or errors that you handle in specific routes
 errorHandling(app);

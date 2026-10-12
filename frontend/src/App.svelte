@@ -3,6 +3,12 @@
   import viteLogo from './assets/vite.svg'
   import heroImg from './assets/hero.png'
   import Counter from './lib/Counter.svelte'
+
+  async function getTestData() {
+    let test = await fetch('api');
+    return await test.text();
+  }
+  let testPromise = getTestData();
 </script>
 
 <section id="center">
@@ -12,7 +18,10 @@
     <img src={viteLogo} class="vite" alt="Vite logo" />
   </div>
   <div>
-    <h1>Get started</h1>
+    {#await testPromise}
+    {:then test_val}
+      <h1>{test_val}</h1>
+    {/await}
     <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
   </div>
   <Counter />

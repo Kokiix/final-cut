@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, CookieOptions } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
@@ -8,6 +8,14 @@ const SALT_ROUNDS = 10;
 
 const TOKEN_EXPIRES_IN = "7d";
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+// shared by login (set the cookie) and logout (clear it).
+// the browser only deletes a cookie if it's cleared with the same options it was set with
+const AUTH_COOKIE_OPTIONS: CookieOptions = {
+  httpOnly: true, // JavaScript in the browser can't read it (protects against XSS stealing it)
+  secure: process.env.NODE_ENV === "production", // only sent over https in production
+  sameSite: "lax"
+};
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   const { name, username, email, password } = req.body ?? {};
@@ -114,12 +122,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const authToken = jwt.sign({ _id: foundUser._id.toString() }, tokenSecret, { expiresIn: TOKEN_EXPIRES_IN });
 
     // put the token in a cookie so the browser sends it automatically on every request
-    res.cookie("authToken", authToken, {
-      httpOnly: true, // JavaScript in the browser can't read it (protects against XSS stealing it)
-      secure: process.env.NODE_ENV === "production", // only sent over https in production
-      sameSite: "lax",
-      maxAge: COOKIE_MAX_AGE_MS
-    });
+    res.cookie("authToken", authToken, { ...AUTH_COOKIE_OPTIONS, maxAge: COOKIE_MAX_AGE_MS });
 
     res.status(200).json({
       success: true,
@@ -160,4 +163,12 @@ export const verify = async (req: Request, res: Response, next: NextFunction) =>
   } catch (err) {
     next(err);
   }
+};
+
+// POST /api/auth/logout
+export const logout = (_req: Request, res: Response) => {
+  // tells the browser to delete the authToken cookie
+  res.clearCookie("authToken", AUTH_COOKIE_OPTIONS);
+
+  res.status(200).json({ success: true, message: "Logged out." });
 };

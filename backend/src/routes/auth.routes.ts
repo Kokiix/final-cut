@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { signup, login, verify } from "../controllers/auth.controller";
+import { signup, login, verify, logout } from "../controllers/auth.controller";
 import { isAuthenticated } from "../middleware/isAuthenticated";
 
 // routes only map URL -> controller function, the logic lives in controllers/auth.controller.ts
@@ -13,5 +13,8 @@ router.post("/login", login);
 
 // GET /api/auth/verify
 router.get("/verify", isAuthenticated, verify);
+
+// POST /api/auth/logout
+router.post("/logout", logout);
 
 export default router;

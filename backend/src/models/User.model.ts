@@ -1,22 +1,41 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
-// TODO: Please make sure you edit the User model to whatever makes sense in this case
 const userSchema = new Schema(
   {
+    name: {
+      type: String,
+      required: [true, 'Name is required.'],
+      trim: true
+    },
+    username: {
+      type: String,
+      required: [true, 'Username is required.'],
+      unique: true,
+      lowercase: true,
+      trim: true,
+      minlength: [3, 'Username must be at least 3 characters.'],
+      maxlength: [30, 'Username must be at most 30 characters.'],
+      match: [/^[a-z0-9_.]+$/, 'Username can only contain letters, numbers, dots and underscores.']
+    },
+    // used to log in
+    // unique + lowercase so the same email can't sign up twice
     email: {
       type: String,
       required: [true, 'Email is required.'],
       unique: true,
       lowercase: true,
-      trim: true
+      trim: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address.']
     },
+    // stores the bcrypt HASH, never the plain password.
     password: {
       type: String,
-      required: [true, 'Password is required.']
+      required: [true, 'Password is required.'],
+      select: false
     }
   },
   {
-    // this second object adds extra properties: `createdAt` and `updatedAt`    
+    // this second object adds extra properties: `createdAt` and `updatedAt`
     timestamps: true
   }
 );

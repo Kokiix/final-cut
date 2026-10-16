@@ -134,3 +134,30 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     next(err);
   }
 };
+
+// GET /api/auth/verify 
+// checks if user is logged in 
+export const verify = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // the token only has the id, so get the latest user info from the db
+    const foundUser = await User.findById(req.payload?._id);
+
+    // token is valid but the user was deleted in the meantime
+    if (!foundUser) {
+      res.status(401).json({ success: false, message: "User no longer exists." });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        _id: foundUser._id,
+        name: foundUser.name,
+        username: foundUser.username,
+        email: foundUser.email
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+};

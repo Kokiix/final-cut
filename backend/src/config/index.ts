@@ -24,7 +24,9 @@ export default (app: Express): void => {
   // controls a very specific header to pass headers from the frontend
   app.use(
     cors({
-      origin: [FRONTEND_URL]
+      origin: [FRONTEND_URL],
+      // lets the browser send/receive cookies (our auth token) to this API from the frontend
+      credentials: true
     })
   );
 

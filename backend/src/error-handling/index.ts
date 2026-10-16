@@ -3,7 +3,7 @@ import { Express, Request, Response, NextFunction } from "express";
 export default (app: Express): void => {
   app.use((req: Request, res: Response, next: NextFunction) => {
     // this middleware runs whenever requested page is not available
-    res.status(404).json({ message: "This route does not exist" });
+    res.status(404).json({ success: false, message: "This route does not exist" });
   });
 
   app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
@@ -16,6 +16,7 @@ export default (app: Express): void => {
       res
         .status(500)
         .json({
+          success: false,
           message: "Internal server error. Check the server console",
         });
     }

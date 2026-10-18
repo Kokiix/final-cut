@@ -1,5 +1,3 @@
-<div>sign up page</div>
-
 <div class="flex h-svh w-full items-center justify-center bg-gray-100">
   <div
     class="flex aspect-square w-md flex-col items-center justify-center gap-4 bg-gray-200 p-6"
@@ -45,7 +43,7 @@
 
     <button
       class="rounded-md border-2 border-gray-400 bg-gray-300 p-2"
-      type="submit">Login</button
+      type="submit">Sign up</button
     >
   </div>
 </div>

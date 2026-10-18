@@ -12,8 +12,8 @@
     "/signup": SignUp,
     "/login": LogIn,
     "/join": Join,
-    "/search": Search,
     "/watchlist": WatchList,
+    "/search": Search,
   };
 
   async function getTestData() {
@@ -23,13 +23,13 @@
   let testPromise = getTestData();
 </script>
 
-<nav>
+<nav class="w-full h-8 flex items-center gap-8 pl-10 bg-black text-white">
   <a href="#/">Home</a>
   <a href="#/signup">Sign up</a>
   <a href="#/login">Log in</a>
   <a href="#/join">Join Game</a>
-  <a href="#/search">Search</a>
   <a href="#/watchlist">Watchlist</a>
+  <a href="#/search">Search</a>
 </nav>
 
 <Router {routes} />

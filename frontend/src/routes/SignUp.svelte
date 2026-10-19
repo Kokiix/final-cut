@@ -1,6 +1,6 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
-  import { signup } from "../lib/api";
+  import { signup } from "../lib/auth.svelte";
 
   let firstName = $state("");
   let lastName = $state("");

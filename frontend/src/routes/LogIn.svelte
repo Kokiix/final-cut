@@ -1,7 +1,6 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
-  import { login } from "../lib/api";
-  import { auth } from "../lib/auth.svelte";
+  import { login } from "../lib/auth.svelte";
 
   let email = $state("");
   let password = $state("");
@@ -14,7 +13,7 @@
     errorMessage = "";
     loading = true;
 
-    // on success the backend sets the authToken cookie for us
+    // also sets auth.user, so the nav shows the user right away
     const res = await login({ email, password });
     loading = false;
 
@@ -23,8 +22,6 @@
       return;
     }
 
-    //nav shows the user right away
-    auth.user = res.user ?? null;
     push("/");
   }
 </script>

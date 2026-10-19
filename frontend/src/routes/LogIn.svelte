@@ -1,6 +1,7 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
   import { login } from "../lib/api";
+  import { auth } from "../lib/auth.svelte";
 
   let email = $state("");
   let password = $state("");
@@ -22,6 +23,8 @@
       return;
     }
 
+    //nav shows the user right away
+    auth.user = res.user ?? null;
     push("/");
   }
 </script>

@@ -2,14 +2,16 @@
 // https://www.npmjs.com/package/mongoose
 import mongoose from "mongoose";
 
-// ℹ️ Sets the MongoDB URI for our app to have access to it.
-// If no env has been set, we dynamically set it to whatever the folder name was upon the creation of the app
+// ℹ️ The whole team uses the same MongoDB Atlas cluster, so the connection string lives in .env (see .env.example).
+// No localhost fallback on purpose: if it's missing we want to know, not silently test on a different db
+const MONGODB_URI = process.env.MONGODB_URI;
 
-const MONGO_URI =
-  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/backend";
+if (!MONGODB_URI) {
+  throw new Error("MONGODB_URI is missing from .env");
+}
 
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGODB_URI)
   .then((x) => {
     const dbName = x.connections[0].name;
     console.log(`Connected to Mongo! Database name: "${dbName}"`);

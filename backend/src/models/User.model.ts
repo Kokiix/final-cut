@@ -32,6 +32,11 @@ const userSchema = new Schema(
       type: String,
       required: [true, 'Password is required.'],
       select: false
+    },
+    // movies the user wants to watch. Stores Movie ids, use .populate("watchlist") to get the full movies
+    watchlist: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Movie" }],
+      default: []
     }
   },
   {

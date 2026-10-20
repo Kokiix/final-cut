@@ -76,9 +76,9 @@ function formatMovie(tmdbMovie: TmdbMovie, genreNames: Record<number, string>) {
 
 // Main function that fills the database.
 async function seed() {
-  const mongoUri = process.env.MONGO_URI;
+  const mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
-    throw new Error('MONGO_URI is missing from .env');
+    throw new Error('MONGODB_URI is missing from .env');
   }
 
   await mongoose.connect(mongoUri);

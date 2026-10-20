@@ -37,8 +37,9 @@ async function request(path: string, { method = "GET", body }: RequestOptions = 
   }
 }
 
-export const signup = (data: { name: string; username: string; email: string; password: string }) =>
-  request("/signup", { method: "POST", body: data });
+export const signup = (data: { name: string; username: string; email: string; password: string }) => {
+  return request("/signup", { method: "POST", body: data });
+};
 
 // on success the backend sets the authToken cookie, we save the user so the nav updates right away
 export async function login(data: { email: string; password: string }) {

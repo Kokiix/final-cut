@@ -1,11 +1,11 @@
-<script>
+<script lang="ts">
   import Router from "svelte-spa-router";
   import Home from "./routes/Home.svelte";
   import SignUp from "./routes/SignUp.svelte";
   import LogIn from "./routes/LogIn.svelte";
   import Join from "./routes/Join.svelte";
   import WatchList from "./routes/WatchList.svelte";
-  import Search from "./routes/Search.svelte";
+  import SearchBar from "./components/SearchBar.svelte";
 
   const routes = {
     "/": Home,
@@ -13,23 +13,37 @@
     "/login": LogIn,
     "/join": Join,
     "/watchlist": WatchList,
-    "/search": Search,
   };
 
-  async function getTestData() {
-    let test = await fetch("api");
-    return await test.text();
-  }
-  let testPromise = getTestData();
+  const links = [
+    { path: "/", label: "Home" },
+    { path: "/signup", label: "Sign up" },
+    { path: "/login", label: "Log in" },
+    { path: "/join", label: "Join Room" },
+    { path: "/watchlist", label: "Watchlist" },
+  ];
+
+  const getPath = () => window.location.hash.slice(1) || "/";
+  let currentPath = $state(getPath());
 </script>
 
-<nav class="w-full h-8 flex items-center gap-8 pl-10 bg-black text-white">
-  <a href="#/">Home</a>
-  <a href="#/signup">Sign up</a>
-  <a href="#/login">Log in</a>
-  <a href="#/join">Join Game</a>
-  <a href="#/watchlist">Watchlist</a>
-  <a href="#/search">Search</a>
-</nav>
+<svelte:window onhashchange={() => (currentPath = getPath())} />
 
-<Router {routes} />
+<div class="bg-[#B87458] h-svh w-full flex flex-col text-neutral-700">
+  <nav class="w-full h-10 flex items-center gap-8 pl-10">
+    {#each links as link}
+      <a
+        href="#{link.path}"
+        class="rounded-md p-1"
+        class:bg-stone-200={currentPath === link.path}
+      >
+        {link.label}
+      </a>
+    {/each}
+    <SearchBar />
+  </nav>
+
+  <main class="flex-1 min-h-0 flex flex-col">
+    <Router {routes} />
+  </main>
+</div>

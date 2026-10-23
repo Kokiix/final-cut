@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
+  const pageTitle = "Join Room | Final Cut";
+
   onMount(() => {
     const inputs = document.querySelectorAll<HTMLInputElement>(
       ".pin-container input",
@@ -29,12 +31,18 @@
   });
 </script>
 
-<div class="flex h-svh w-full items-center justify-center bg-gray-100">
+<svelte:head>
+  <title>{pageTitle}</title>
+</svelte:head>
+
+<div
+  class="flex flex-1 items-center justify-center bg-stone-200 m-1 rounded-md"
+>
   <div
-    class="pin-container flex items-center justify-center gap-4 bg-gray-200 p-6"
+    class="pin-container flex items-center justify-center gap-4 bg-stone-300 p-6"
   >
     <input
-      class="w-10 aspect-square rounded-full bg-gray-300 text-center"
+      class="w-10 aspect-square rounded-full bg-gray-400 text-center"
       maxlength="1"
       type="text"
       inputmode="numeric"
@@ -43,7 +51,7 @@
       required
     />
     <input
-      class="w-10 aspect-square rounded-full bg-gray-300 text-center"
+      class="w-10 aspect-square rounded-full bg-gray-400 text-center"
       maxlength="1"
       type="text"
       inputmode="numeric"
@@ -52,7 +60,7 @@
       required
     />
     <input
-      class="w-10 aspect-square rounded-full bg-gray-300 text-center"
+      class="w-10 aspect-square rounded-full bg-gray-400 text-center"
       maxlength="1"
       type="text"
       inputmode="numeric"
@@ -61,7 +69,7 @@
       required
     />
     <input
-      class="w-10 aspect-square rounded-full bg-gray-300 text-center"
+      class="w-10 aspect-square rounded-full bg-gray-400 text-center"
       maxlength="1"
       type="text"
       inputmode="numeric"
@@ -70,7 +78,7 @@
       required
     />
     <input
-      class="w-10 aspect-square rounded-full bg-gray-300 text-center"
+      class="w-10 aspect-square rounded-full bg-gray-400 text-center"
       maxlength="1"
       type="text"
       inputmode="numeric"
@@ -79,7 +87,7 @@
       required
     />
     <input
-      class="w-10 aspect-square rounded-full bg-gray-300 text-center"
+      class="w-10 aspect-square rounded-full bg-gray-400 text-center"
       maxlength="1"
       type="text"
       inputmode="numeric"

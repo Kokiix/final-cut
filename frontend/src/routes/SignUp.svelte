@@ -1,6 +1,16 @@
-<div class="flex h-svh w-full items-center justify-center bg-gray-100">
+<script lang="ts">
+  const pageTitle = "Sign up | Final Cut";
+</script>
+
+<svelte:head>
+  <title>{pageTitle}</title>
+</svelte:head>
+
+<div
+  class="flex flex-1 items-center justify-center bg-stone-200 m-1 rounded-md"
+>
   <div
-    class="flex aspect-square w-md flex-col items-center justify-center gap-4 bg-gray-200 p-6"
+    class="flex aspect-square w-md flex-col items-center justify-center gap-4 bg-stone-300 p-6"
   >
     <div class="flex w-full gap-4">
       <input

@@ -1,4 +1,14 @@
-<div class="flex h-svh w-full items-center justify-center bg-gray-100">
+<script lang="ts">
+  const pageTitle = "Home | Final Cut";
+</script>
+
+<svelte:head>
+  <title>{pageTitle}</title>
+</svelte:head>
+
+<div
+  class="flex flex-1 items-center justify-center bg-stone-200 m-1 rounded-md"
+>
   <button
     class="rounded-md border-2 border-gray-400 bg-gray-300 p-2 flex gap-2"
     type="submit"

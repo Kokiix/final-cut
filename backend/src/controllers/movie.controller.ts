@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import Movie from "../models/Movie";
 
-// no pagination yet, so cap the results to avoid sending the whole collection on an empty search
-const MAX_RESULTS = 50;
+// the navbar search dropdown only shows the top 10, so don't send more than that
+const MAX_RESULTS = 10;
 
 // escapes characters like . * ( ) so the user's text is searched literally and can't break the regex
 const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

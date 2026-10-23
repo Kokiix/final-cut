@@ -2,18 +2,18 @@
   import { push } from "svelte-spa-router";
   import { login } from "../lib/auth.svelte";
 
+  const pageTitle = "Log in | Final Cut";
+
   let email = $state("");
   let password = $state("");
   let errorMessage = $state("");
   let loading = $state(false);
 
   async function handleSubmit(e: SubmitEvent) {
-    // stop the browser from reloading the page
     e.preventDefault();
     errorMessage = "";
     loading = true;
 
-    // also sets auth.user, so the nav shows the user right away
     const res = await login({ email, password });
     loading = false;
 
@@ -26,24 +26,33 @@
   }
 </script>
 
-<div class="flex h-svh w-full items-center justify-center bg-gray-100">
-  <form
-    class="flex aspect-square w-md flex-col items-center justify-center gap-4 bg-gray-200 p-6"
-    onsubmit={handleSubmit}
-  >
+<svelte:head>
+  <title>{pageTitle}</title>
+</svelte:head>
+
+<div
+  class="m-1 flex flex-1 items-center justify-center rounded-md bg-stone-200 p-4"
+>
+  <form class="flex w-full max-w-xs flex-col gap-3" onsubmit={handleSubmit}>
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="email"
-      placeholder="Email"
       name="email"
+      placeholder="Email"
+      aria-label="Email"
+      autocomplete="email"
       bind:value={email}
       required
     />
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="password"
-      placeholder="Password"
       name="password"
+      placeholder="Password"
+      aria-label="Password"
+      autocomplete="current-password"
       bind:value={password}
       required
     />
@@ -53,9 +62,20 @@
     {/if}
 
     <button
-      class="rounded-md border-2 border-gray-400 bg-gray-300 p-2"
+      class="mt-3 cursor-pointer bg-slate-600 py-3 font-medium text-stone-200 transition
+             hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2
+             focus-visible:outline-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
       type="submit"
-      disabled={loading}>Log in</button
+      disabled={loading}
     >
+      Log in
+    </button>
+
+    <a
+      href="/#/signup"
+      class="mt-1 text-center text-sm text-slate-600 transition hover:text-orange-700"
+    >
+      Sign up instead
+    </a>
   </form>
 </div>

@@ -6,6 +6,7 @@
   import Join from "./routes/Join.svelte";
   import WatchList from "./routes/WatchList.svelte";
   import Search from "./routes/Search.svelte";
+  import SearchBar from "./components/SearchBar.svelte";
   import { auth, loadUser, logOut } from "./lib/auth.svelte";
 
   const routes = {
@@ -26,18 +27,54 @@
   }
 </script>
 
-<nav class="w-full h-8 flex items-center gap-8 pl-10 bg-black text-white">
-  <a href="#/">Home</a>
-  {#if auth.user}
-    <span>Hi, {auth.user.username}</span>
-    <button onclick={handleLogOut}>Log out</button>
-  {:else}
-    <a href="#/signup">Sign up</a>
-    <a href="#/login">Log in</a>
-  {/if}
-  <a href="#/join">Join Game</a>
-  <a href="#/watchlist">Watchlist</a>
-  <a href="#/search">Search</a>
-</nav>
+<div class="bg-[#B87458] h-svh w-full flex flex-col text-neutral-700">
+  <nav class="w-full h-11 flex items-center gap-6 pl-10 font-medium">
+    <a
+      href="#/"
+      class="rounded-md p-1 w-28 text-center transition-colors hover:bg-stone-200"
+      >Home</a
+    >
 
-<Router {routes} />
+    {#if auth.user}
+      <span>Hi, {auth.user.username}</span>
+      <button
+        type="button"
+        onclick={handleLogOut}
+        class="rounded-md p-1 text-center transition-colors hover:bg-stone-200"
+        >Log out</button
+      >
+    {:else}
+      <a
+        href="#/signup"
+        class="rounded-md p-1 w-28 text-center transition-colors hover:bg-stone-200"
+        >Sign up</a
+      >
+      <a
+        href="#/login"
+        class="rounded-md p-1 w-28 text-center transition-colors hover:bg-stone-200"
+        >Log in</a
+      >
+    {/if}
+
+    <a
+      href="#/join"
+      class="rounded-md p-1 w-28 text-center transition-colors hover:bg-stone-200"
+      >Join Game</a
+    >
+    <a
+      href="#/watchlist"
+      class="rounded-md p-1 w-28 text-center transition-colors hover:bg-stone-200"
+      >Watchlist</a
+    >
+    <a
+      href="#/search"
+      class="rounded-md p-1 w-28 text-center transition-colors hover:bg-stone-200"
+      >Search</a
+    >
+    <SearchBar />
+  </nav>
+
+  <main class="flex-1 min-h-0 flex flex-col">
+    <Router {routes} />
+  </main>
+</div>

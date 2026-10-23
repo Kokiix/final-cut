@@ -2,6 +2,8 @@
   import { push } from "svelte-spa-router";
   import { signup } from "../lib/auth.svelte";
 
+  const pageTitle = "Sign up | Final Cut";
+
   let firstName = $state("");
   let lastName = $state("");
   let username = $state("");
@@ -11,12 +13,10 @@
   let loading = $state(false);
 
   async function handleSubmit(e: SubmitEvent) {
-    // stop the browser from reloading the page
     e.preventDefault();
     errorMessage = "";
     loading = true;
 
-    // backend only has one `name` field
     const name = `${firstName.trim()} ${lastName.trim()}`;
     const res = await signup({ name, username, email, password });
     loading = false;
@@ -30,51 +30,69 @@
   }
 </script>
 
-<div class="flex h-svh w-full items-center justify-center bg-gray-100">
-  <form
-    class="flex aspect-square w-md flex-col items-center justify-center gap-4 bg-gray-200 p-6"
-    onsubmit={handleSubmit}
-  >
-    <div class="flex w-full gap-4">
+<svelte:head>
+  <title>{pageTitle}</title>
+</svelte:head>
+
+<div
+  class="m-1 flex flex-1 items-center justify-center rounded-md bg-stone-200 p-4"
+>
+  <form class="flex w-full max-w-xs flex-col gap-3" onsubmit={handleSubmit}>
+    <div class="flex gap-3">
       <input
-        class="w-full rounded-sm border-2 border-gray-400 p-2"
+        class="min-w-0 flex-1 border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+               placeholder:text-slate-600/60 focus:border-orange-700"
         type="text"
-        placeholder="First Name"
         name="firstname"
+        placeholder="First name"
+        aria-label="First name"
+        autocomplete="given-name"
         bind:value={firstName}
         required
       />
       <input
-        class="w-full rounded-sm border-2 border-gray-400 p-2"
+        class="min-w-0 flex-1 border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+               placeholder:text-slate-600/60 focus:border-orange-700"
         type="text"
-        placeholder="Last Name"
         name="lastname"
+        placeholder="Last name"
+        aria-label="Last name"
+        autocomplete="family-name"
         bind:value={lastName}
         required
       />
     </div>
 
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="text"
-      placeholder="Username"
       name="username"
+      placeholder="Username"
+      aria-label="Username"
+      autocomplete="username"
       bind:value={username}
       required
     />
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="email"
-      placeholder="Email"
       name="email"
+      placeholder="Email"
+      aria-label="Email"
+      autocomplete="email"
       bind:value={email}
       required
     />
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="password"
-      placeholder="Password"
       name="password"
+      placeholder="Password"
+      aria-label="Password"
+      autocomplete="new-password"
       minlength="8"
       bind:value={password}
       required
@@ -85,9 +103,20 @@
     {/if}
 
     <button
-      class="rounded-md border-2 border-gray-400 bg-gray-300 p-2"
+      class="mt-3 cursor-pointer bg-slate-600 py-3 font-medium text-stone-200 transition
+             hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2
+             focus-visible:outline-orange-700 disabled:cursor-not-allowed disabled:opacity-60"
       type="submit"
-      disabled={loading}>Sign up</button
+      disabled={loading}
     >
+      Sign up
+    </button>
+
+    <a
+      href="/#/login"
+      class="mt-1 text-center text-sm text-slate-600 transition hover:text-orange-700"
+    >
+      Log in instead
+    </a>
   </form>
 </div>

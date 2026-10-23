@@ -26,7 +26,11 @@ export const GENRES = [
 ];
 
 // Searches movies by title and genre. Both are optional.
-export async function searchMovies(q: string, genre: string): Promise<SearchResponse> {
+export async function searchMovies(
+  q: string,
+  genre: string,
+  signal?: AbortSignal,
+): Promise<SearchResponse> {
   const params = new URLSearchParams();
   if (q.trim()) {
     params.set("q", q.trim());
@@ -36,7 +40,7 @@ export async function searchMovies(q: string, genre: string): Promise<SearchResp
   }
 
   try {
-    const res = await fetch("/api/movies/search?" + params.toString());
+    const res = await fetch("/api/movies/search?" + params.toString(), { signal });
     return await res.json();
   } catch {
     return { success: false, message: "Could not reach the server. Try again." };

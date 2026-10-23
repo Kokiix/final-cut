@@ -6,4 +6,6 @@
   <title>{pageTitle}</title>
 </svelte:head>
 
-<div>watch list page</div>
+<div
+  class="flex flex-1 items-center justify-center bg-stone-200 rounded-md m-1"
+></div>

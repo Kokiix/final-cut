@@ -7,29 +7,44 @@
 </svelte:head>
 
 <div
-  class="flex flex-1 items-center justify-center bg-stone-200 rounded-md m-1"
+  class="m-1 flex flex-1 items-center justify-center rounded-md bg-stone-200 p-4"
 >
-  <div
-    class="flex aspect-square w-md flex-col items-center justify-center gap-4 bg-stone-300 p-6"
-  >
+  <form class="flex w-full max-w-xs flex-col gap-3">
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="text"
-      placeholder="Username"
       name="username"
+      placeholder="Username"
+      aria-label="Username"
+      autocomplete="username"
       required
     />
     <input
-      class="w-full rounded-sm border-2 border-gray-400 p-2"
+      class="border-b-2 border-gray-400 bg-stone-300/30 px-3 py-3 text-neutral-700 outline-none transition
+             placeholder:text-slate-600/60 focus:border-orange-700"
       type="password"
-      placeholder="Password"
       name="password"
+      placeholder="Password"
+      aria-label="Password"
+      autocomplete="current-password"
       required
     />
 
     <button
-      class="rounded-md border-2 border-gray-400 bg-gray-300 p-2"
-      type="submit">Log in</button
+      class="mt-3 cursor-pointer bg-slate-600 py-3 font-medium text-stone-200 transition
+             hover:bg-neutral-700 focus-visible:outline-2 focus-visible:outline-offset-2
+             focus-visible:outline-orange-700"
+      type="submit"
     >
-  </div>
+      Log in
+    </button>
+
+    <a
+      href="/#/signup"
+      class="mt-1 text-center text-sm text-slate-600 transition hover:text-orange-700"
+    >
+      Sign up instead
+    </a>
+  </form>
 </div>

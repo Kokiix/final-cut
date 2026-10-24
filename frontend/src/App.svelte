@@ -7,6 +7,7 @@
   import Join from "./routes/Join.svelte";
   import WatchList from "./routes/WatchList.svelte";
   import SearchBar from "./components/SearchBar.svelte";
+  import Movie from "./routes/Movie.svelte";
   import { auth, loadUser, logOut } from "./lib/auth.svelte";
 
   const routes = {
@@ -15,6 +16,7 @@
     "/login": LogIn,
     "/join": Join,
     "/watchlist": WatchList,
+    "/movie": Movie,
   };
 
   const links = [
@@ -81,7 +83,7 @@
 </div>
 
 <style>
-:global(.nav-active) {
+  :global(.nav-active) {
     background-color: var(--color-stone-200);
     color: var(--color-neutral-700);
   }

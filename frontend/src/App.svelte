@@ -10,6 +10,8 @@
   import WatchList from "./routes/WatchList.svelte";
   import SearchBar from "./components/SearchBar.svelte";
   import Movie from "./routes/Movie.svelte";
+  import NewRoom from "./routes/NewRoom.svelte";
+  import Room from "./routes/Room.svelte";
   import { auth, loadUser, logOut } from "./lib/auth.svelte";
 
   // on page load/refresh, check if the cookie still logs us in
@@ -34,6 +36,8 @@
     "/join": protect(Join),
     "/watchlist": protect(WatchList),
     "/movie/:id": protect(Movie),
+    "/new": protect(NewRoom),
+    "/room/:code": protect(Room),
   };
 
   const links = [

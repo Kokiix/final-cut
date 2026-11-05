@@ -158,7 +158,7 @@ describe("POST /api/game-rooms/join", () => {
     expect(res.body).toEqual({ success: true, gameRoom: joinedRoom });
     expect(findOne).toHaveBeenCalledWith({ code: "ABCDEF" });
     expect(findOneAndUpdate).toHaveBeenCalledWith(
-      { _id: roomId, status: "lobby", "players.11": { $exists: false } },
+      { _id: roomId, status: "lobby", "players.7": { $exists: false } },
       { $addToSet: { players: otherId.toString() } },
       { new: true }
     );
@@ -210,7 +210,7 @@ describe("POST /api/game-rooms/join", () => {
   });
 
   it("returns 409 when the room is full", async () => {
-    const fullRoom = Array.from({ length: 12 }, () => new mongoose.Types.ObjectId());
+    const fullRoom = Array.from({ length: 8 }, () => new mongoose.Types.ObjectId());
     findOne.mockReturnValue(mockQuery({ _id: roomId, players: fullRoom, status: "lobby" }));
 
     const res = await request(app)
@@ -219,7 +219,7 @@ describe("POST /api/game-rooms/join", () => {
       .send({ code: "ABCDEF" });
 
     expect(res.status).toBe(409);
-    expect(res.body).toEqual({ success: false, message: "This room is full (12/12 players)." });
+    expect(res.body).toEqual({ success: false, message: "This room is full (8/8 players)." });
     expect(findOneAndUpdate).not.toHaveBeenCalled();
   });
 
@@ -310,7 +310,7 @@ describe("GET /api/game-rooms/:code", () => {
     expect(res.body.gameRoom.code).toBe("ABCDEF");
     expect(findOne).toHaveBeenCalledWith({ code: "ABCDEF" });
     expect(query.populate).toHaveBeenCalledWith("players", "name username");
-    expect(query.populate).toHaveBeenCalledWith("pool");
+    expect(query.populate).toHaveBeenCalledWith("remaining_movies");
   });
 
   it("returns 403 to someone who isn't in the room", async () => {
@@ -412,7 +412,7 @@ describe("POST /api/game-rooms/:code/start", () => {
     findUsers.mockReturnValue(mockQuery([{ watchlist: [movieA, deletedMovie] }, { watchlist: [movieB] }]));
     findMovies.mockReturnValue(mockQuery([{ _id: movieA }, { _id: movieB }]));
     buildPoolMock.mockReturnValue([movieA.toString(), movieB.toString()]);
-    const startedRoom = { _id: roomId.toString(), status: "playing", pool: [] };
+    const startedRoom = { _id: roomId.toString(), status: "playing", remaining_movies: [] };
     findOneAndUpdate.mockReturnValue(mockQuery(startedRoom));
 
     const res = await request(app).post("/api/game-rooms/abcdef/start").set("Cookie", authCookie(hostId));
@@ -427,7 +427,7 @@ describe("POST /api/game-rooms/:code/start", () => {
     );
     expect(findOneAndUpdate).toHaveBeenCalledWith(
       { _id: roomId, status: "lobby" },
-      { $set: { pool: [movieA.toString(), movieB.toString()], status: "playing" } },
+      { $set: { remaining_movies: [movieA.toString(), movieB.toString()], status: "playing" } },
       { new: true }
     );
   });

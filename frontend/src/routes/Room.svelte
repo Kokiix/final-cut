@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { push } from "svelte-spa-router";
-  import { getRoom, leaveRoom, type GameRoom } from "../lib/rooms";
+  import { push, replace } from "svelte-spa-router";
+  import { getRoom, leaveRoom, startRoom, type GameRoom } from "../lib/rooms";
   import { auth } from "../lib/auth.svelte";
 
   // svelte-spa-router passes the room code from /room/:code
@@ -9,6 +9,11 @@
 
   let room = $state<GameRoom | null>(null);
   let errorMessage = $state("");
+  // Separate from errorMessage, because every successful refresh clears that one.
+  let startError = $state("");
+  let starting = $state(false);
+
+  let isHost = $derived(!!room && !!auth.user && auth.user._id === room.host._id);
 
   // How often the page checks for new players, in milliseconds.
   const REFRESH_MS = 2000;
@@ -21,7 +26,37 @@
       return;
     }
     errorMessage = "";
+
+    // Everyone moves to the ban room as soon as the host starts the game.
+    if (res.gameRoom.status === "playing") {
+      goToBanRoom();
+      return;
+    }
+
+    // "You need at least 2 players" is out of date once someone joins or leaves.
+    if (room && room.players.length !== res.gameRoom.players.length) {
+      startError = "";
+    }
     room = res.gameRoom;
+  }
+
+  // replace instead of push so the back button doesn't return to the waiting room
+  function goToBanRoom() {
+    replace("/room/" + params.code + "/ban");
+  }
+
+  // Starts the game. The backend decides if it can start and sends back why not.
+  async function handleStart() {
+    startError = "";
+    starting = true;
+    const res = await startRoom(params.code);
+    starting = false;
+
+    if (!res.success) {
+      startError = res.message ?? "Could not start the game.";
+      return;
+    }
+    goToBanRoom();
   }
 
   // Leaves the room and goes back home.
@@ -40,7 +75,7 @@
 </script>
 
 <svelte:head>
-  <title>Room | Final Cut</title>
+  <title>Room {params.code} | Final Cut</title>
 </svelte:head>
 
 <div class="m-1 flex flex-1 items-center justify-center rounded-md bg-stone-200 p-4">
@@ -79,8 +114,20 @@
 
       <p class="mt-8 flex items-center justify-center gap-2 text-sm text-neutral-500">
         <span class="size-2 animate-pulse rounded-full bg-orange-700"></span>
-        Waiting for the host to start...
+        Waiting for the {#if auth.user && auth.user._id === room.host._id}YOU{:else}{room.host.username}{/if} to start...
       </p>
+    {/if}
+
+    {#if isHost}
+      {#if startError}
+        <p class="mt-6 text-center text-red-600">{startError}</p>
+      {/if}
+      <button
+        type="button"
+        onclick={handleStart}
+        disabled={starting}
+        class="mt-6 w-full cursor-pointer rounded-lg bg-slate-700 py-2 font-semibold text-stone-100 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-60"
+      >{starting ? "Starting..." : "Start game"}</button>
     {/if}
 
     <button

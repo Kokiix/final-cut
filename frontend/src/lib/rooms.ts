@@ -1,3 +1,5 @@
+import type { Movie } from "./movies.svelte";
+
 // A player as the room endpoints send it back.
 export interface Player {
   _id: string;
@@ -11,6 +13,7 @@ export interface GameRoom {
   code: string;
   host: Player;
   players: Player[];
+  remaining_movies: Movie[]; // empty until the game starts
   status: "lobby" | "playing" | "completed";
 }
 
@@ -49,6 +52,11 @@ export function joinRoom(code: string) {
 // Gets the room's latest info (players, host, status).
 export function getRoom(code: string) {
   return request("/" + code, "GET");
+}
+
+// Starts the game and builds the movie pool. Only works for the host.
+export function startRoom(code: string) {
+  return request("/" + code + "/start", "POST");
 }
 
 // Leaves the room.

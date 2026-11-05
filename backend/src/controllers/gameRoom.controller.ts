@@ -10,9 +10,9 @@ const CODE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 // a new code can collide with an existing room, so try a few times before giving up
 const MAX_CODE_ATTEMPTS = 5;
 
-// a game needs at least 2 people to start, and a room holds at most 12
+// a game needs at least 2 people to start, and a room holds at most 8
 export const MIN_PLAYERS = 2;
-export const MAX_PLAYERS = 12;
+export const MAX_PLAYERS = 8;
 
 // what the client gets back about the people in a room (no email, no password)
 const PLAYER_FIELDS = "name username";
@@ -157,7 +157,7 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
     const foundRoom = await GameRoom.findOne({ code })
       .populate("host", PLAYER_FIELDS)
       .populate("players", PLAYER_FIELDS)
-      .populate("pool")
+      .populate("remaining_movies")
       .populate("winner");
 
     if (!foundRoom) {
@@ -287,11 +287,11 @@ export const startGameRoom = async (req: Request, res: Response, next: NextFunct
     // status: "lobby" in the filter so a double click on start can't build two pools
     const startedRoom = await GameRoom.findOneAndUpdate(
       { _id: foundRoom._id, status: "lobby" },
-      { $set: { pool, status: "playing" } },
+      { $set: { remaining_movies: pool, status: "playing" } },
       { new: true }
     )
     .populate("players", PLAYER_FIELDS)
-    .populate("pool");
+    .populate("remaining_movies");
 
     if (!startedRoom) {
       res.status(409).json({ success: false, message: "This game has already started." });

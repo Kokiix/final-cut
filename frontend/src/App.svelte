@@ -12,6 +12,7 @@
   import Movie from "./routes/Movie.svelte";
   import NewRoom from "./routes/NewRoom.svelte";
   import Room from "./routes/Room.svelte";
+  import BanRoom from "./routes/BanRoom.svelte";
   import { auth, loadUser, logOut } from "./lib/auth.svelte";
 
   // on page load/refresh, check if the cookie still logs us in
@@ -38,6 +39,7 @@
     "/movie/:id": protect(Movie),
     "/new": protect(NewRoom),
     "/room/:code": protect(Room),
+    "/room/:code/ban": protect(BanRoom),
   };
 
   const links = [

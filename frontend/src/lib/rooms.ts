@@ -14,8 +14,8 @@ export interface GameRoom {
   host: Player;
   players: Player[];
   remaining_movies: Movie[]; // empty until the game starts
-  status: "lobby" 
-  version: number;| "playing" | "completed";
+  status: "lobby" | "playing" | "completed";
+  version: number;
 }
 
 // What every room endpoint sends back.

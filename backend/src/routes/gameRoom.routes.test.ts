@@ -313,6 +313,15 @@ describe("GET /api/game-rooms/:code", () => {
     expect(query.populate).toHaveBeenCalledWith("remaining_movies");
   });
 
+  it("returns changed=false when the client already has the latest version", async () => {
+    findOne.mockReturnValue(mockQuery({ ...room, version: 3 }));
+
+    const res = await request(app).get("/api/game-rooms/ABCDEF?version=3").set("Cookie", authCookie(hostId));
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, changed: false, version: 3 });
+  });
+
   it("returns 403 to someone who isn't in the room", async () => {
     findOne.mockReturnValue(mockQuery(room));
 

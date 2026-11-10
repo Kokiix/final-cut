@@ -222,6 +222,12 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    // the screen already has this version, so just say nothing changed
+    if (foundRoom.version === Number(req.query.version)) {
+      res.status(200).json({ success: true, changed: false, version: foundRoom.version });
+      return;
+    }
+
     // only a started game has a ban round, so the lobby poll doesn't need the extra queries
     if (foundRoom.status !== "playing") {
       res.status(200).json({ success: true, gameRoom: foundRoom });
@@ -230,14 +236,7 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
 
     const bans = await getBanState(foundRoom, req.payload!._id);
 
-    res.status(200).json({ success: true, gameRoom: { ...asPlain(foundRoom), bans } });
-    // the screen already has this version, so just say nothing changed
-    if (foundRoom.version === Number(req.query.version)) {
-      res.status(200).json({ success: true, changed: false, version: foundRoom.version });
-      return;
-    }
-
-    res.status(200).json({ success: true, changed: true, gameRoom: foundRoom });
+    res.status(200).json({ success: true, changed: true, gameRoom: { ...asPlain(foundRoom), bans } });
   } catch (err) {
     next(err);
   }
@@ -367,8 +366,8 @@ export const startGameRoom = async (req: Request, res: Response, next: NextFunct
           round_finished: pool.length <= MIN_POOL_SIZE,
           winner: null,
         },
+        $inc: { version: 1 },
       },
-      { $set: { remaining_movies: pool, status: "playing" }, $inc: { version: 1 } },
       { new: true }
     )
     .populate("players", PLAYER_FIELDS)

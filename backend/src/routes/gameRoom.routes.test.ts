@@ -462,8 +462,8 @@ describe("POST /api/game-rooms/:code/start", () => {
           round_finished: false,
           winner: null,
         },
+        $inc: { version: 1 },
       },
-      { $inc: { version: 1 }, $set: { remaining_movies: [movieA.toString(), movieB.toString()], status: "playing" } },
       { new: true }
     );
   });

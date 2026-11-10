@@ -174,7 +174,7 @@ describe("POST /api/game-rooms/join", () => {
     expect(findOne).toHaveBeenCalledWith({ code: "ABCDEF" });
     expect(findOneAndUpdate).toHaveBeenCalledWith(
       { _id: roomId, status: "lobby", "players.7": { $exists: false } },
-      { $addToSet: { players: otherId.toString() } },
+      { $inc: { version: 1 }, $addToSet: { players: otherId.toString() } },
       { new: true }
     );
     expect(updateQuery.populate).toHaveBeenCalledWith("players", "name username");
@@ -357,7 +357,7 @@ describe("POST /api/game-rooms/:code/leave", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ success: true, message: "You left the room." });
     expect(findByIdAndUpdate).toHaveBeenCalledWith(roomId, {
-      $pull: { players: otherId.toString() },
+      $inc: { version: 1 }, $pull: { players: otherId.toString() },
       $set: { host: hostId },
     });
   });
@@ -370,7 +370,7 @@ describe("POST /api/game-rooms/:code/leave", () => {
 
     expect(res.status).toBe(200);
     expect(findByIdAndUpdate).toHaveBeenCalledWith(roomId, {
-      $pull: { players: hostId.toString() },
+      $inc: { version: 1 }, $pull: { players: hostId.toString() },
       $set: { host: otherId },
     });
   });
@@ -454,6 +454,7 @@ describe("POST /api/game-rooms/:code/start", () => {
           winner: null,
         },
       },
+      { $inc: { version: 1 }, $set: { remaining_movies: [movieA.toString(), movieB.toString()], status: "playing" } },
       { new: true }
     );
   });

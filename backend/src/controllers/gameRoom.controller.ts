@@ -151,7 +151,7 @@ export const joinGameRoom = async (req: Request, res: Response, next: NextFuncti
       alreadyIn
         ? { _id: foundRoom._id }
         : { _id: foundRoom._id, status: "lobby", [`players.${MAX_PLAYERS - 1}`]: { $exists: false } },
-      { $addToSet: { players: userId } },
+      { $addToSet: { players: userId }, $inc: { version: 1 } },
       { new: true }
     ).populate("players", PLAYER_FIELDS);
 
@@ -231,6 +231,13 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
     const bans = await getBanState(foundRoom, req.payload!._id);
 
     res.status(200).json({ success: true, gameRoom: { ...asPlain(foundRoom), bans } });
+    // the screen already has this version, so just say nothing changed
+    if (foundRoom.version === Number(req.query.version)) {
+      res.status(200).json({ success: true, changed: false, version: foundRoom.version });
+      return;
+    }
+
+    res.status(200).json({ success: true, changed: true, gameRoom: foundRoom });
   } catch (err) {
     next(err);
   }
@@ -280,6 +287,7 @@ export const leaveGameRoom = async (req: Request, res: Response, next: NextFunct
     await GameRoom.findByIdAndUpdate(foundRoom._id, {
       $pull: { players: userId }, // remove player from the array
       $set: { host: newHost }, // set new host if the leaving player was the host
+      $inc: { version: 1 }, // tells everyone the room changed
     });
 
     res.status(200).json({ success: true, message: "You left the room." });
@@ -360,6 +368,7 @@ export const startGameRoom = async (req: Request, res: Response, next: NextFunct
           winner: null,
         },
       },
+      { $set: { remaining_movies: pool, status: "playing" }, $inc: { version: 1 } },
       { new: true }
     )
     .populate("players", PLAYER_FIELDS)

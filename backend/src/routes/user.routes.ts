@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getUserProfile, toggleWatchlist, getWatchlist } from "../controllers/user.controller";
+import { getUserProfile, toggleWatchlist, getWatchlist, updateMe } from "../controllers/user.controller";
 import { isAuthenticated } from "../middleware/isAuthenticated";
 
 // routes only map URL -> controller function, the logic lives in controllers/user.controller.ts
@@ -11,6 +11,10 @@ router.get("/watchlist", isAuthenticated, getWatchlist);
 
 // POST /api/users/watchlist/:movieId
 router.post("/watchlist/:movieId", isAuthenticated, toggleWatchlist);
+
+// PUT /api/users/me
+// above /:username for the same reason as /watchlist
+router.put("/me", isAuthenticated, updateMe);
 
 // GET /api/users/:username
 router.get("/:username", getUserProfile);

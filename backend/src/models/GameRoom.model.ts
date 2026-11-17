@@ -73,6 +73,15 @@ const gameRoomSchema = new Schema(
       type: hypeResultsSchema,
       default: null
     },
+    // the two highest-scoring hype qualifiers and when the final round becomes available
+    final_movies: {
+      type: [{ type: Schema.Types.ObjectId, ref: "Movie" }],
+      default: []
+    },
+    final_starts_at: {
+      type: Date,
+      default: null
+    },
     // the round being played, see ROUNDS above
     currentRound: {
       type: String,

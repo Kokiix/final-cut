@@ -32,6 +32,15 @@
   let mounted = true;
   // Keeps a slow request from overlapping the next tick.
   let inFlight = false;
+  let transitionTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleFinalTransition(nextRoom: GameRoom) {
+    if (transitionTimer) clearTimeout(transitionTimer);
+    if (!nextRoom.hype?.finished || !nextRoom.final_starts_at) return;
+
+    const delay = Math.max(0, new Date(nextRoom.final_starts_at).getTime() - Date.now());
+    transitionTimer = setTimeout(loadRoom, delay);
+  }
 
   // Gets the room and its hype round state from the backend.
   async function loadRoom() {
@@ -44,6 +53,11 @@
 
     if (!res.success || !res.gameRoom) {
       errorMessage = res.message ?? "Could not load the room.";
+      return;
+    }
+
+    if (res.gameRoom.currentRound === "final") {
+      replace("/room/" + params.code + "/final");
       return;
     }
 
@@ -62,6 +76,7 @@
     errorMessage = "";
     room = res.gameRoom;
     submitError = "";
+    scheduleFinalTransition(res.gameRoom);
   }
 
   // Adds one point to a movie, if there are points left.
@@ -99,7 +114,10 @@
     }
 
     draft = {};
-    if (res.gameRoom) room = res.gameRoom;
+    if (res.gameRoom) {
+      room = res.gameRoom;
+      scheduleFinalTransition(res.gameRoom);
+    }
   }
 
   // Shows or hides the voters under one movie in the results.
@@ -136,6 +154,7 @@
     return () => {
       mounted = false;
       clearInterval(timer);
+      if (transitionTimer) clearTimeout(transitionTimer);
     };
   });
 </script>

@@ -105,12 +105,24 @@ async function getBanState(room: any, userId: any, roundFinished = !!room.round_
   };
 }
 
-// What the hype screen needs to know: the progress, everyone's allocations, the live totals,
-// and the survivours once the round is over. Unlike bans, these points are public.
+// What the hype screen needs to know. Allocations and totals are only returned after the round ends.
 async function getHypeState(room: any, userId: any, roundFinished = !!room.round_finished) {
-  const submissions: any[] = await Submission.find({ room: room._id, round: "hype" })
-    .populate("player", PLAYER_FIELDS)
-    .populate("choices.movie");
+  let submissions: any[] = [];
+  let submitted: number;
+  let mySubmission: any;
+
+  if (roundFinished) {
+    submissions = await Submission.find({ room: room._id, round: "hype" })
+      .populate("player", PLAYER_FIELDS)
+      .populate("choices.movie");
+    submitted = submissions.length;
+    mySubmission = submissions.find((submission) => playerIdOf(submission.player) === String(userId));
+  } else {
+    [submitted, mySubmission] = await Promise.all([
+      Submission.countDocuments({ room: room._id, round: "hype" }),
+      Submission.findOne({ room: room._id, round: "hype", player: userId }).populate("choices.movie"),
+    ]);
+  }
 
   const poolIds: string[] = (room.remaining_movies ?? []).map(movieIdOf);
 
@@ -120,21 +132,19 @@ async function getHypeState(room: any, userId: any, roundFinished = !!room.round
     moviesById.set(movieIdOf(movie), movie);
   }
 
-  const mySubmission = submissions.find((submission) => playerIdOf(submission.player) === String(userId));
-
   const myPoints = (mySubmission?.choices ?? []).map((choice: any) => ({
     movie: choice.movie,
     points: choice.points ?? 0,
   }));
 
-  const pointsByPlayer = submissions.map((submission) =>
+  const pointsByPlayer = roundFinished ? submissions.map((submission) =>
     Object.fromEntries(
       (submission.choices ?? []).map((choice: any) => [movieIdOf(choice.movie), choice.points ?? 0])
     ) as HypePoints
-  );
+  ) : [];
 
   // the saved scoreboard is the truth once the round is over, so a refresh can't change it
-  const savedTotals = roundFinished ? room.hype_results?.totals ?? null : null;
+  const savedTotals = room.hype_results?.totals ?? null;
 
   const totalsFor: HypePoints = savedTotals?.length
     ? Object.fromEntries(savedTotals.map((row: any) => [movieIdOf(row.movie), row.points ?? 0]))
@@ -152,20 +162,20 @@ async function getHypeState(room: any, userId: any, roundFinished = !!room.round
   });
 
   return {
-    submitted: submissions.length,
+    submitted,
     required: room.round_players?.length ?? 0,
     finished: roundFinished,
     can_submit: blockReason === null,
     block_reason: blockReason,
     my_points: myPoints,
-    allocations: submissions.map((submission) => ({
+    allocations: roundFinished ? submissions.map((submission) => ({
       player: submission.player,
       points: (submission.choices ?? []).map((choice: any) => ({
         movie: movieIdOf(choice.movie),
         points: choice.points ?? 0,
       })),
-    })),
-    totals,
+    })) : [],
+    totals: roundFinished ? totals : [],
     qualifiers: roundFinished ? room.remaining_movies ?? [] : [],
     cut_movies: roundFinished ? room.eliminated_movies ?? [] : [],
     cutoff_tie: !!room.hype_results?.cutoff_tie,

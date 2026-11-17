@@ -159,7 +159,7 @@
   });
 </script>
 
-{#snippet scoreboard(live: boolean)}
+{#snippet scoreboard()}
   <section class="mt-8">
     <h2 class="mb-3 text-xs font-semibold tracking-widest text-orange-700 uppercase">
       Scoreboard
@@ -167,9 +167,7 @@
     <ol class="flex flex-col gap-2">
       {#each sortedTotals as row, index (row.movie._id)}
         <li
-          class="rounded-2xl bg-stone-100 p-3 shadow-sm {live || advanced(row.movie._id)
-            ? ''
-            : 'opacity-60'}"
+          class="rounded-2xl bg-stone-100 p-3 shadow-sm {advanced(row.movie._id) ? '' : 'opacity-60'}"
         >
           <div class="flex items-center gap-3">
             <span class="w-6 shrink-0 text-center font-bold text-slate-600">{index + 1}</span>
@@ -180,26 +178,24 @@
               <p class="truncate font-semibold">{row.movie.title}</p>
               <p class="text-sm text-neutral-500">{row.points} points</p>
             </div>
-            {#if !live}
-              <span
-                class="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase {advanced(
-                  row.movie._id
-                )
-                  ? 'bg-orange-700/10 text-orange-700'
-                  : 'bg-neutral-200 text-neutral-500'}"
-              >
-                {advanced(row.movie._id) ? "Through" : "Cut"}
-              </span>
-              <button
-                type="button"
-                onclick={() => toggleExpanded(row.movie._id)}
-                aria-expanded={expanded.includes(row.movie._id)}
-                class="shrink-0 cursor-pointer rounded-lg border border-slate-700 px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-stone-200"
-              >Voters</button>
-            {/if}
+            <span
+              class="shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase {advanced(
+                row.movie._id
+              )
+                ? 'bg-orange-700/10 text-orange-700'
+                : 'bg-neutral-200 text-neutral-500'}"
+            >
+              {advanced(row.movie._id) ? "Through" : "Cut"}
+            </span>
+            <button
+              type="button"
+              onclick={() => toggleExpanded(row.movie._id)}
+              aria-expanded={expanded.includes(row.movie._id)}
+              class="shrink-0 cursor-pointer rounded-lg border border-slate-700 px-3 py-1 text-sm font-semibold text-slate-700 hover:bg-stone-200"
+            >Voters</button>
           </div>
 
-          {#if live || expanded.includes(row.movie._id)}
+          {#if expanded.includes(row.movie._id)}
             <ul class="mt-2 flex flex-wrap gap-2 border-t border-stone-200 pt-2 text-sm text-neutral-600">
               {#each votersFor(row.movie._id) as voter (voter.username)}
                 <li class="rounded-full bg-stone-200 px-2.5 py-0.5">{voter.username} · {voter.points}</li>
@@ -259,7 +255,7 @@
         </p>
       {/if}
 
-      {@render scoreboard(false)}
+      {@render scoreboard()}
 
       <h2 class="mt-8 mb-3 text-xs font-semibold tracking-widest text-orange-700 uppercase">
         Moving on
@@ -365,7 +361,6 @@
         {/if}
       {/if}
 
-      {@render scoreboard(true)}
     {/if}
   {/if}
 </div>

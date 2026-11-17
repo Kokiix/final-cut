@@ -1033,6 +1033,14 @@ describe("POST /api/game-rooms/:code/hype", () => {
         },
       ])
     );
+    findSubmission.mockReturnValue(
+      mockQuery({
+        choices: [
+          { movie: movieObjects[0], points: 4 },
+          { movie: movieObjects[1], points: 6 },
+        ],
+      })
+    );
 
     const res = await request(app)
       .post("/api/game-rooms/ABCDEF/hype")
@@ -1310,19 +1318,9 @@ describe("GET /api/game-rooms/:code hype state", () => {
     ...overrides,
   });
 
-  it("returns the progress, live allocations and totals", async () => {
+  it("returns progress without revealing the live leaderboard", async () => {
     findOne.mockReturnValue(mockQuery(playingRoom()));
-    findSubmissions.mockReturnValue(
-      mockQuery([
-        {
-          player: { _id: otherId, username: "bob" },
-          choices: [
-            { movie: movieObjects[0], points: 6 },
-            { movie: movieObjects[1], points: 4 },
-          ],
-        },
-      ])
-    );
+    countSubmissions.mockResolvedValue(1);
 
     const res = await request(app).get("/api/game-rooms/ABCDEF").set("Cookie", authCookie(hostId));
 
@@ -1334,23 +1332,13 @@ describe("GET /api/game-rooms/:code hype state", () => {
       can_submit: true,
       block_reason: null,
       my_points: [],
+      allocations: [],
+      totals: [],
       qualifiers: [],
       cut_movies: [],
       cutoff_tie: false,
     });
-    expect(res.body.gameRoom.hype.allocations).toEqual([
-      {
-        player: { _id: otherId.toString(), username: "bob" },
-        points: [
-          { movie: pool[0].toString(), points: 6 },
-          { movie: pool[1].toString(), points: 4 },
-        ],
-      },
-    ]);
-    // someone else's points are visible, and totals start at zero for every pool movie
-    expect(res.body.gameRoom.hype.totals).toHaveLength(6);
-    expect(res.body.gameRoom.hype.totals[0]).toMatchObject({ points: 6 });
-    expect(res.body.gameRoom.hype.totals[0].movie.title).toBe("Movie 0");
+    expect(findSubmissions).not.toHaveBeenCalled();
     expect(res.body.gameRoom).not.toHaveProperty("bans");
   });
 

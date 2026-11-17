@@ -27,7 +27,13 @@
   let spent = $derived(Object.values(draft).reduce((sum, points) => sum + points, 0));
   let left = $derived(POINTS - spent);
   let locked = $derived(!!hype && hype.my_points.length > 0);
-  let sortedTotals = $derived(hype?.totals ?? []);
+  let sortedTotals = $derived(
+    (hype?.totals ?? []).slice().sort((a, b) => {
+      const aAdvanced = !!hype?.qualifiers.some((movie) => movie._id === a.movie._id);
+      const bAdvanced = !!hype?.qualifiers.some((movie) => movie._id === b.movie._id);
+      return Number(bAdvanced) - Number(aAdvanced) || b.points - a.points;
+    })
+  );
 
   // Stops the poller from touching state after the page is gone.
   let mounted = true;

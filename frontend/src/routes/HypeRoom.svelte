@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { push, replace } from "svelte-spa-router";
   import MovieCard from "../components/MovieCard.svelte";
+  import TransitionCountdown from "../components/TransitionCountdown.svelte";
   import { getRoom, leaveRoom, submitHype, type GameRoom } from "../lib/rooms";
 
   // svelte-spa-router passes the room code from /room/:code/hype
@@ -220,6 +221,10 @@
   {:else if !room || !hype}
     <p class="m-auto text-lg text-slate-600">Loading...</p>
   {:else}
+    {#if hype.finished}
+      <TransitionCountdown endsAt={room.final_starts_at} label="Final Cut starts" />
+    {/if}
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
         <p class="text-xs font-semibold tracking-widest text-orange-700 uppercase">
@@ -281,7 +286,6 @@
         </ul>
       {/if}
 
-      <p class="mt-8 text-center text-sm text-neutral-500">Waiting for the next round...</p>
     {:else}
       {#if submitError}
         <p class="mb-4 rounded-lg bg-red-100 px-4 py-2 text-center text-red-700">{submitError}</p>

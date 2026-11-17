@@ -15,6 +15,7 @@
   import BanRoom from "./routes/BanRoom.svelte";
   import HypeRoom from "./routes/HypeRoom.svelte";
   import FinalRoom from "./routes/FinalRoom.svelte";
+  import Profile from "./routes/Profile.svelte";
   import { auth, loadUser, logOut } from "./lib/auth.svelte";
 
   // on page load/refresh, check if the cookie still logs us in
@@ -44,6 +45,7 @@
     "/room/:code/ban": protect(BanRoom),
     "/room/:code/hype": protect(HypeRoom),
     "/room/:code/final": protect(FinalRoom),
+    "/profile": protect(Profile),
   };
 
   const links = [
@@ -76,7 +78,11 @@
     <div class="ml-auto flex items-center gap-3">
       <SearchBar />
       {#if auth.user}
-        <span class="text-stone-100">Hi, {auth.user.username}</span>
+        <span class="text-stone-100"
+          >Hi, <a href="#/profile" class="underline underline-offset-2 hover:text-white"
+            >{auth.user.username}</a
+          ></span
+        >
         <button
           type="button"
           onclick={handleLogOut}

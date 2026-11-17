@@ -295,7 +295,19 @@ describe("GET /api/game-rooms", () => {
 
     await request(app).get("/api/game-rooms?status=completed").set("Cookie", authCookie(hostId));
 
-    expect(find).toHaveBeenCalledWith({ players: hostId.toString(), status: "completed" });
+    expect(find).toHaveBeenCalledWith({
+      players: hostId.toString(),
+      status: "completed",
+      winner: { $ne: null },
+    });
+  });
+
+  it("only filters by winner for completed games", async () => {
+    find.mockReturnValue(mockQuery([]));
+
+    await request(app).get("/api/game-rooms?status=lobby").set("Cookie", authCookie(hostId));
+
+    expect(find).toHaveBeenCalledWith({ players: hostId.toString(), status: "lobby" });
   });
 
   it("returns 400 for an unknown ?status", async () => {

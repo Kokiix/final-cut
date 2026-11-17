@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mock } from "vitest";
 import request from "supertest";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import app from "../app";
 import User from "../models/User.model";
 
@@ -12,9 +14,15 @@ vi.mock("morgan", () => ({
   default: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock("../models/User.model", () => ({ default: { findOne: vi.fn() } }));
+vi.mock("../models/User.model", () => ({ default: { findOne: vi.fn(), findByIdAndUpdate: vi.fn() } }));
 
 const findOne = User.findOne as unknown as Mock;
+const findByIdAndUpdate = User.findByIdAndUpdate as unknown as Mock;
+
+const secret = "test-secret";
+const originalSecret = process.env.TOKEN_SECRET;
+const userId = new mongoose.Types.ObjectId();
+const authCookie = () => `authToken=${jwt.sign({ _id: userId.toString() }, secret)}`;
 
 const profile = {
   _id: "user123",
@@ -36,6 +44,11 @@ function mockFindOneReturning(user: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  process.env.TOKEN_SECRET = secret;
+});
+
+afterAll(() => {
+  process.env.TOKEN_SECRET = originalSecret;
 });
 
 describe("GET /api/users/:username", () => {
@@ -87,5 +100,68 @@ describe("GET /api/users/:username", () => {
     });
 
     consoleError.mockRestore();
+  });
+});
+
+describe("PUT /api/users/me", () => {
+  const updated = { _id: userId.toString(), name: "Ada L", username: "ada_l", email: "ada@example.com" };
+
+  it("updates the sent fields and returns the user without the password", async () => {
+    findByIdAndUpdate.mockResolvedValue({ ...updated, password: "hash" });
+
+    const res = await request(app)
+      .put("/api/users/me")
+      .set("Cookie", authCookie())
+      .send({ name: " Ada L ", username: "ada_l", password: "ignored" });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, user: updated });
+    expect(findByIdAndUpdate).toHaveBeenCalledWith(
+      userId.toString(),
+      { $set: { name: "Ada L", username: "ada_l" } },
+      { new: true, runValidators: true }
+    );
+  });
+
+  it("returns 401 when not logged in", async () => {
+    const res = await request(app).put("/api/users/me").send({ name: "Ada" });
+
+    expect(res.status).toBe(401);
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for an empty field", async () => {
+    const res = await request(app).put("/api/users/me").set("Cookie", authCookie()).send({ name: "  " });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, message: "Name cannot be empty." });
+    expect(findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 when nothing editable is sent", async () => {
+    const res = await request(app).put("/api/users/me").set("Cookie", authCookie()).send({ password: "x" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, message: "Nothing to update." });
+  });
+
+  it("returns 409 when the username is taken", async () => {
+    findByIdAndUpdate.mockRejectedValue({ code: 11000, keyValue: { username: "bob" } });
+
+    const res = await request(app).put("/api/users/me").set("Cookie", authCookie()).send({ username: "bob" });
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ success: false, message: "Username is already taken." });
+  });
+
+  it("returns 400 when the model rejects the value", async () => {
+    const err = new mongoose.Error.ValidationError();
+    err.addError("email", new mongoose.Error.ValidatorError({ message: "Please provide a valid email address.", path: "email" }));
+    findByIdAndUpdate.mockRejectedValue(err);
+
+    const res = await request(app).put("/api/users/me").set("Cookie", authCookie()).send({ email: "nope" });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ success: false, message: "Please provide a valid email address." });
   });
 });

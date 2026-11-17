@@ -98,3 +98,71 @@ export const getWatchlist = async (req: Request, res: Response, next: NextFuncti
     next(err);
   }
 };
+
+// the profile fields a user can change about themselves. Password has its own flow, so it's not here
+const EDITABLE_FIELDS = ["name", "username", "email"] as const;
+
+// PUT /api/users/me
+// updates the logged in user's name, username and/or email. Only the fields that are sent change
+export const updateMe = async (req: Request, res: Response, next: NextFunction) => {
+  const body = req.body ?? {};
+  const updates: Record<string, string> = {};
+
+  for (const field of EDITABLE_FIELDS) {
+    if (body[field] === undefined) continue;
+
+    // only accept plain strings (same trick as in signup)
+    if (typeof body[field] !== "string" || !body[field].trim()) {
+      res.status(400).json({ success: false, message: `${field[0].toUpperCase()}${field.slice(1)} cannot be empty.` });
+      return;
+    }
+
+    updates[field] = body[field].trim();
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ success: false, message: "Nothing to update." });
+    return;
+  }
+
+  try {
+    // runValidators so the model's format/length rules run on updates too
+    const updatedUser = await User.findByIdAndUpdate(req.payload?._id, { $set: updates }, {
+      new: true,
+      runValidators: true
+    });
+
+    // token is valid but the user was deleted in the meantime
+    if (!updatedUser) {
+      res.status(401).json({ success: false, message: "User no longer exists." });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        _id: updatedUser._id,
+        name: updatedUser.name,
+        username: updatedUser.username,
+        email: updatedUser.email
+      }
+    });
+  } catch (err) {
+    // model rules failed (bad email format, username too short, ...)
+    if (err instanceof mongoose.Error.ValidationError) {
+      const firstError = Object.values(err.errors)[0];
+      res.status(400).json({ success: false, message: firstError?.message ?? "Invalid user data." });
+      return;
+    }
+
+    // the unique index caught a username or email someone else already has
+    if ((err as { code?: number }).code === 11000) {
+      const key = Object.keys((err as { keyValue?: object }).keyValue ?? {})[0];
+      const field = key === "email" ? "Email" : key === "username" ? "Username" : "Email or username";
+      res.status(409).json({ success: false, message: `${field} is already taken.` });
+      return;
+    }
+
+    next(err);
+  }
+};

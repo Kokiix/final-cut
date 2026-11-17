@@ -324,6 +324,11 @@ export const getMyGameRooms = async (req: Request, res: Response, next: NextFunc
     filter.status = status;
   }
 
+  // a game only counts as completed once it has a winner, so a half-finished room never shows up as done
+  if (status === "completed") {
+    filter.winner = { $ne: null };
+  }
+
   try {
     const gameRooms = await GameRoom.find(filter)
       .select("code host players winner status createdAt")

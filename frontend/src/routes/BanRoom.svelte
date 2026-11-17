@@ -28,6 +28,15 @@
   let mounted = true;
   // Keeps a slow request from overlapping the next tick.
   let inFlight = false;
+  let revealTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function scheduleHypeTransition(nextRoom: GameRoom) {
+    if (revealTimer) clearTimeout(revealTimer);
+    if (!nextRoom.bans?.finished || !nextRoom.ban_reveal_until) return;
+
+    const delay = Math.max(0, new Date(nextRoom.ban_reveal_until).getTime() - Date.now());
+    revealTimer = setTimeout(loadRoom, delay);
+  }
 
   // Gets the room and its ban round state from the backend.
   async function loadRoom() {
@@ -64,6 +73,7 @@
 
     room = res.gameRoom;
     banError = "";
+    scheduleHypeTransition(res.gameRoom);
   }
 
   // Highlights one movie, or un-highlights it if it was already selected.
@@ -87,7 +97,10 @@
     }
 
     selectedId = null;
-    if (res.gameRoom) room = res.gameRoom;
+    if (res.gameRoom) {
+      room = res.gameRoom;
+      scheduleHypeTransition(res.gameRoom);
+    }
   }
 
   // Leaves the room and goes back home.
@@ -102,6 +115,7 @@
     return () => {
       mounted = false;
       clearInterval(timer);
+      if (revealTimer) clearTimeout(revealTimer);
     };
   });
 </script>

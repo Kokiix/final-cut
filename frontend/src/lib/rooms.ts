@@ -46,6 +46,19 @@ export interface HypeState {
   tied_movies: Movie[]; // the movies that had to be drawn from
 }
 
+// The final head-to-head vote.
+export interface FinalState {
+  finalists: Movie[];
+  submitted: number;
+  required: number;
+  finished: boolean;
+  can_vote: boolean;
+  block_reason: string | null;
+  my_vote: Movie | null;
+  winner: Movie | null;
+  votes: { movie: Movie; votes: number }[];
+}
+
 // A game room as GET /api/game-rooms/:code sends it back.
 export interface GameRoom {
   _id: string;
@@ -56,9 +69,12 @@ export interface GameRoom {
   status: "lobby" | "playing" | "completed";
   currentRound: "ban" | "hype" | "headToHead" | "wildcard" | "final";
   round_finished: boolean;
+  final_starts_at?: string | null;
+  ban_reveal_until?: string | null;
   eliminated_movies?: Movie[]; // hype cuts, kept for a possible revival round
   bans?: BanState; // only sent while the room is playing the ban round
   hype?: HypeState; // only sent while the room is playing the hype round
+  final?: FinalState; // only sent during or after the final round
   version: number;
 }
 
@@ -119,6 +135,11 @@ export function banMovie(code: string, movieId: string) {
 // Spends the player's 10 points in the hype round. Only works once per player, and can't be undone.
 export function submitHype(code: string, points: Record<string, number>) {
   return request("/" + code + "/hype", "POST", { points: points });
+}
+
+// Votes for one of the two finalists. Only works once per player.
+export function voteFinal(code: string, movieId: string) {
+  return request("/" + code + "/final", "POST", { movieId: movieId });
 }
 
 // Leaves the room.

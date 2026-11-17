@@ -23,6 +23,8 @@ const MAX_CODE_ATTEMPTS = 5;
 // a game needs at least 2 people to start, and a room holds at most 8
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
+const FINAL_DELAY_MS = 10_000;
+const BAN_REVEAL_MS = 10_000;
 
 // what the client gets back about the people in a room (no email, no password)
 const PLAYER_FIELDS = "name username";
@@ -104,12 +106,24 @@ async function getBanState(room: any, userId: any, roundFinished = !!room.round_
   };
 }
 
-// What the hype screen needs to know: the progress, everyone's allocations, the live totals,
-// and the survivours once the round is over. Unlike bans, these points are public.
+// What the hype screen needs to know. Allocations and totals are only returned after the round ends.
 async function getHypeState(room: any, userId: any, roundFinished = !!room.round_finished) {
-  const submissions: any[] = await Submission.find({ room: room._id, round: "hype" })
-    .populate("player", PLAYER_FIELDS)
-    .populate("choices.movie");
+  let submissions: any[] = [];
+  let submitted: number;
+  let mySubmission: any;
+
+  if (roundFinished) {
+    submissions = await Submission.find({ room: room._id, round: "hype" })
+      .populate("player", PLAYER_FIELDS)
+      .populate("choices.movie");
+    submitted = submissions.length;
+    mySubmission = submissions.find((submission) => playerIdOf(submission.player) === String(userId));
+  } else {
+    [submitted, mySubmission] = await Promise.all([
+      Submission.countDocuments({ room: room._id, round: "hype" }),
+      Submission.findOne({ room: room._id, round: "hype", player: userId }).populate("choices.movie"),
+    ]);
+  }
 
   const poolIds: string[] = (room.remaining_movies ?? []).map(movieIdOf);
 
@@ -119,21 +133,19 @@ async function getHypeState(room: any, userId: any, roundFinished = !!room.round
     moviesById.set(movieIdOf(movie), movie);
   }
 
-  const mySubmission = submissions.find((submission) => playerIdOf(submission.player) === String(userId));
-
   const myPoints = (mySubmission?.choices ?? []).map((choice: any) => ({
     movie: choice.movie,
     points: choice.points ?? 0,
   }));
 
-  const pointsByPlayer = submissions.map((submission) =>
+  const pointsByPlayer = roundFinished ? submissions.map((submission) =>
     Object.fromEntries(
       (submission.choices ?? []).map((choice: any) => [movieIdOf(choice.movie), choice.points ?? 0])
     ) as HypePoints
-  );
+  ) : [];
 
   // the saved scoreboard is the truth once the round is over, so a refresh can't change it
-  const savedTotals = roundFinished ? room.hype_results?.totals ?? null : null;
+  const savedTotals = room.hype_results?.totals ?? null;
 
   const totalsFor: HypePoints = savedTotals?.length
     ? Object.fromEntries(savedTotals.map((row: any) => [movieIdOf(row.movie), row.points ?? 0]))
@@ -151,25 +163,67 @@ async function getHypeState(room: any, userId: any, roundFinished = !!room.round
   });
 
   return {
-    submitted: submissions.length,
+    submitted,
     required: room.round_players?.length ?? 0,
     finished: roundFinished,
     can_submit: blockReason === null,
     block_reason: blockReason,
     my_points: myPoints,
-    allocations: submissions.map((submission) => ({
+    allocations: roundFinished ? submissions.map((submission) => ({
       player: submission.player,
       points: (submission.choices ?? []).map((choice: any) => ({
         movie: movieIdOf(choice.movie),
         points: choice.points ?? 0,
       })),
-    })),
-    totals,
+    })) : [],
+    totals: roundFinished ? totals : [],
     qualifiers: roundFinished ? room.remaining_movies ?? [] : [],
     cut_movies: roundFinished ? room.eliminated_movies ?? [] : [],
     cutoff_tie: !!room.hype_results?.cutoff_tie,
     tied_movies: roundFinished
       ? (room.hype_results?.tied_movies ?? []).map((movie: any) => moviesById.get(movieIdOf(movie)) ?? movie)
+      : [],
+  };
+}
+
+// What the final screen needs to know. Votes stay secret until the winner is decided.
+async function getFinalState(room: any, userId: any) {
+  const submissions: any[] = await Submission.find({ room: room._id, round: "final" })
+    .populate("choices.movie");
+  const finalists: any[] = room.final_movies ?? [];
+  const finalistIds = finalists.map(movieIdOf);
+  const mySubmission = submissions.find((submission) => playerIdOf(submission.player) === String(userId));
+  const counts = Object.fromEntries(finalistIds.map((id) => [id, 0])) as Record<string, number>;
+
+  if (room.round_finished) {
+    for (const submission of submissions) {
+      for (const choice of submission.choices ?? []) {
+        const id = movieIdOf(choice.movie);
+        if (counts[id] !== undefined) counts[id]++;
+      }
+    }
+  }
+
+  let blockReason: string | null = null;
+  if (room.status === "completed" || room.round_finished) {
+    blockReason = "The final round is over.";
+  } else if (mySubmission) {
+    blockReason = "You already voted in this round.";
+  } else if (!(room.round_players ?? []).some((player: any) => playerIdOf(player) === String(userId))) {
+    blockReason = "You are not part of this round.";
+  }
+
+  return {
+    finalists,
+    submitted: submissions.length,
+    required: room.round_players?.length ?? 0,
+    finished: !!room.round_finished,
+    can_vote: blockReason === null,
+    block_reason: blockReason,
+    my_vote: mySubmission?.choices?.[0]?.movie ?? null,
+    winner: room.winner ?? null,
+    votes: room.round_finished
+      ? finalists.map((movie) => ({ movie, votes: counts[movieIdOf(movie)] ?? 0 }))
       : [],
   };
 }
@@ -300,11 +354,12 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const foundRoom = await GameRoom.findOne({ code })
+    let foundRoom: any = await GameRoom.findOne({ code })
       .populate("host", PLAYER_FIELDS)
       .populate("players", PLAYER_FIELDS)
       .populate("remaining_movies")
       .populate("eliminated_movies")
+      .populate("final_movies")
       .populate("winner");
 
     if (!foundRoom) {
@@ -313,9 +368,100 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
     }
 
     // players are populated here, so compare their _id
-    if (!foundRoom.players.some((player) => player._id.equals(req.payload!._id))) {
+    if (!foundRoom.players.some((player: any) => player._id.equals(req.payload!._id))) {
       res.status(403).json({ success: false, message: "You are not in this room." });
       return;
+    }
+
+    // Keep the ban reveal open for ten seconds before handing over to hype.
+    if (
+      foundRoom.status === "playing" &&
+      foundRoom.currentRound === "ban" &&
+      foundRoom.round_finished &&
+      foundRoom.ban_reveal_until &&
+      new Date(foundRoom.ban_reveal_until).getTime() <= Date.now()
+    ) {
+      const transitionedRoom: any = await GameRoom.findOneAndUpdate(
+        {
+          _id: foundRoom._id,
+          currentRound: "ban",
+          round_finished: true,
+          ban_reveal_until: { $lte: new Date() },
+        },
+        {
+          $set: {
+            currentRound: "hype",
+            round_finished: false,
+            round_players: foundRoom.players.map(playerIdOf),
+          },
+          $inc: { version: 1 },
+        },
+        { new: true }
+      )
+        .populate("host", PLAYER_FIELDS)
+        .populate("players", PLAYER_FIELDS)
+        .populate("remaining_movies")
+        .populate("eliminated_movies")
+        .populate("final_movies")
+        .populate("winner");
+
+      if (transitionedRoom) {
+        foundRoom = transitionedRoom;
+      } else {
+        foundRoom = await GameRoom.findOne({ _id: foundRoom._id })
+          .populate("host", PLAYER_FIELDS)
+          .populate("players", PLAYER_FIELDS)
+          .populate("remaining_movies")
+          .populate("eliminated_movies")
+          .populate("final_movies")
+          .populate("winner");
+      }
+    }
+
+    // The final starts ten seconds after the hype results are saved. The persisted timestamp
+    // keeps the transition consistent for players who refresh or join the room late.
+    if (
+      foundRoom.status === "playing" &&
+      foundRoom.currentRound === "hype" &&
+      foundRoom.round_finished &&
+      foundRoom.final_starts_at &&
+      new Date(foundRoom.final_starts_at).getTime() <= Date.now()
+    ) {
+      const transitionedRoom: any = await GameRoom.findOneAndUpdate(
+        {
+          _id: foundRoom._id,
+          currentRound: "hype",
+          round_finished: true,
+          final_starts_at: { $lte: new Date() },
+        },
+        {
+          $set: {
+            currentRound: "final",
+            round_finished: false,
+            round_players: foundRoom.players.map(playerIdOf),
+          },
+          $inc: { version: 1 },
+        },
+        { new: true }
+      )
+        .populate("host", PLAYER_FIELDS)
+        .populate("players", PLAYER_FIELDS)
+        .populate("remaining_movies")
+        .populate("eliminated_movies")
+        .populate("final_movies")
+        .populate("winner");
+
+      if (transitionedRoom) {
+        foundRoom = transitionedRoom;
+      } else {
+        foundRoom = await GameRoom.findOne({ _id: foundRoom._id })
+          .populate("host", PLAYER_FIELDS)
+          .populate("players", PLAYER_FIELDS)
+          .populate("remaining_movies")
+          .populate("eliminated_movies")
+          .populate("final_movies")
+          .populate("winner");
+      }
     }
 
     // the screen already has this version, so just say nothing changed
@@ -325,7 +471,7 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
     }
 
     // only a started game has a round state, so the lobby poll doesn't need the extra queries
-    if (foundRoom.status !== "playing") {
+    if (foundRoom.status !== "playing" && !(foundRoom.status === "completed" && foundRoom.currentRound === "final")) {
       res.status(200).json({ success: true, gameRoom: foundRoom });
       return;
     }
@@ -334,7 +480,9 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
     const roundState =
       foundRoom.currentRound === "hype"
         ? { hype: await getHypeState(foundRoom, req.payload!._id) }
-        : { bans: await getBanState(foundRoom, req.payload!._id) };
+        : foundRoom.currentRound === "final"
+          ? { final: await getFinalState(foundRoom, req.payload!._id) }
+          : { bans: await getBanState(foundRoom, req.payload!._id) };
 
     res.status(200).json({ success: true, changed: true, gameRoom: { ...asPlain(foundRoom), ...roundState } });
   } catch (err) {
@@ -467,6 +615,9 @@ export const startGameRoom = async (req: Request, res: Response, next: NextFunct
           // a fresh game has no cuts and no hype scoreboard yet
           eliminated_movies: [],
           hype_results: null,
+          final_movies: [],
+          final_starts_at: null,
+          ban_reveal_until: null,
         },
         $inc: { version: 1 },
       },
@@ -597,16 +748,13 @@ export const banMovie = async (req: Request, res: Response, next: NextFunction) 
     );
 
     if (finished) {
-      // the ban round hands over to the hype round in the same update, so nobody sits between
-      // rounds. The guard makes sure only one ban can re-snapshot the players
-      const nextRoom: any = await GameRoom.findOneAndUpdate(
+      // Save the reveal deadline once so every player sees the same ten-second window.
+      const finishedRoom: any = await GameRoom.findOneAndUpdate(
         { _id: foundRoom._id, currentRound: "ban", round_finished: false },
         {
           $set: {
-            currentRound: "hype",
-            round_finished: false,
-            // only the players still in the room owe points, so a leaver doesn't block hype
-            round_players: roomAfterBan.players.map((player: any) => playerIdOf(player)),
+            round_finished: true,
+            ban_reveal_until: new Date(Date.now() + BAN_REVEAL_MS),
           },
           $inc: { version: 1 },
         },
@@ -615,12 +763,10 @@ export const banMovie = async (req: Request, res: Response, next: NextFunction) 
         .populate("players", PLAYER_FIELDS)
         .populate("remaining_movies");
 
-      if (nextRoom) {
-        // the ban reveal is still part of this response, the room just already says hype
-        const bans = await getBanState(roomAfterBan, userId, true);
-        res.status(200).json({ success: true, gameRoom: { ...asPlain(nextRoom), bans } });
-        return;
-      }
+      const revealRoom = finishedRoom ?? roomAfterBan;
+      const bans = await getBanState(revealRoom, userId, true);
+      res.status(200).json({ success: true, gameRoom: { ...asPlain(revealRoom), bans } });
+      return;
     }
 
     const bans = await getBanState(roomAfterBan, userId, finished);
@@ -738,6 +884,10 @@ export const hypeMovie = async (req: Request, res: Response, next: NextFunction)
     const { qualifiers, cutoffTie, tied } = pickQualifiers(totals, poolIds);
     const survivorIds = new Set(qualifiers);
     const cutIds = poolIds.filter((movieId) => !survivorIds.has(movieId));
+    const finalIds = [...qualifiers]
+      .sort((a, b) => (totals[b] ?? 0) - (totals[a] ?? 0))
+      .slice(0, 2);
+    const finalStartsAt = new Date(Date.now() + FINAL_DELAY_MS);
 
     // the guard means only one request can finish the round, so the tiebreak is only drawn once
     const finishedRoom: any = await GameRoom.findOneAndUpdate(
@@ -746,6 +896,8 @@ export const hypeMovie = async (req: Request, res: Response, next: NextFunction)
         $set: {
           round_finished: true,
           remaining_movies: poolIds.filter((movieId) => survivorIds.has(movieId)),
+          final_movies: finalIds,
+          final_starts_at: finalStartsAt,
           hype_results: {
             totals: poolIds.map((movieId) => ({ movie: movieId, points: totals[movieId] ?? 0 })),
             cutoff_tie: cutoffTie,
@@ -775,6 +927,144 @@ export const hypeMovie = async (req: Request, res: Response, next: NextFunction)
 
     const hype = await getHypeState(finishedRoom, userId, true);
     res.status(200).json({ success: true, gameRoom: { ...asPlain(finishedRoom), hype } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/game-rooms/:code/final
+// records one final vote per player, then decides the winner once everyone has voted
+export const finalVote = async (req: Request, res: Response, next: NextFunction) => {
+  const code = normalizeCode(req.params.code);
+  const userId = req.payload!._id;
+
+  if (!code) {
+    res.status(400).json({ success: false, message: "Please provide a room code." });
+    return;
+  }
+
+  const movieId = normalizeMovieId(req.body?.movieId);
+  if (!movieId) {
+    res.status(400).json({ success: false, message: "Please pick a finalist." });
+    return;
+  }
+
+  try {
+    const foundRoom: any = await GameRoom.findOne({ code })
+      .select("players status currentRound round_finished round_players final_movies hype_results")
+      .populate("final_movies")
+      .populate("winner");
+
+    if (!foundRoom) {
+      res.status(404).json({ success: false, message: "Room not found." });
+      return;
+    }
+
+    if (!foundRoom.players.some((player: any) => playerIdOf(player) === String(userId))) {
+      res.status(403).json({ success: false, message: "You are not in this room." });
+      return;
+    }
+
+    if (foundRoom.status !== "playing") {
+      const message = foundRoom.status === "lobby" ? "This game has not started." : "This game is already over.";
+      res.status(409).json({ success: false, message });
+      return;
+    }
+
+    if (foundRoom.currentRound !== "final") {
+      res.status(409).json({ success: false, message: "It is not the final round." });
+      return;
+    }
+
+    if (foundRoom.round_finished) {
+      res.status(409).json({ success: false, message: "The final round is over." });
+      return;
+    }
+
+    if (!(foundRoom.round_players ?? []).some((player: any) => playerIdOf(player) === String(userId))) {
+      res.status(403).json({ success: false, message: "You are not part of this round." });
+      return;
+    }
+
+    const finalistIds: string[] = (foundRoom.final_movies ?? []).map(movieIdOf);
+    if (!finalistIds.includes(movieId)) {
+      res.status(400).json({ success: false, message: "That movie is not a finalist." });
+      return;
+    }
+
+    try {
+      await Submission.create({
+        room: foundRoom._id,
+        round: "final",
+        player: userId,
+        choices: [{ movie: movieId }],
+      });
+    } catch (err) {
+      if (!isDuplicateKey(err)) throw err;
+      res.status(409).json({ success: false, message: "You already voted in this round." });
+      return;
+    }
+
+    const submitted = await Submission.countDocuments({ room: foundRoom._id, round: "final" });
+    const required = foundRoom.round_players?.length ?? 0;
+    let updatedRoom: any;
+
+    if (submitted >= required) {
+      const submissions: any[] = await Submission.find({ room: foundRoom._id, round: "final" });
+      const votes = Object.fromEntries(finalistIds.map((id) => [id, 0])) as Record<string, number>;
+      for (const submission of submissions) {
+        for (const choice of submission.choices ?? []) {
+          const id = movieIdOf(choice.movie);
+          if (votes[id] !== undefined) votes[id]++;
+        }
+      }
+
+      const mostVotes = Math.max(...finalistIds.map((id) => votes[id] ?? 0));
+      const tiedByVotes = finalistIds.filter((id) => votes[id] === mostVotes);
+      const hypePoints = Object.fromEntries(
+        (foundRoom.hype_results?.totals ?? []).map((row: any) => [movieIdOf(row.movie), row.points ?? 0])
+      ) as Record<string, number>;
+      const mostHype = Math.max(...tiedByVotes.map((id) => hypePoints[id] ?? 0));
+      const tiedByHype = tiedByVotes.filter((id) => (hypePoints[id] ?? 0) === mostHype);
+      const winnerId = tiedByHype[Math.floor(Math.random() * tiedByHype.length)];
+
+      updatedRoom = await GameRoom.findOneAndUpdate(
+        { _id: foundRoom._id, currentRound: "final", round_finished: false },
+        {
+          $set: { status: "completed", round_finished: true, winner: winnerId },
+          $inc: { version: 1 },
+        },
+        { new: true }
+      )
+        .populate("players", PLAYER_FIELDS)
+        .populate("remaining_movies")
+        .populate("eliminated_movies")
+        .populate("final_movies")
+        .populate("winner");
+    } else {
+      updatedRoom = await GameRoom.findOneAndUpdate(
+        { _id: foundRoom._id, currentRound: "final", round_finished: false },
+        { $inc: { version: 1 } },
+        { new: true }
+      )
+        .populate("players", PLAYER_FIELDS)
+        .populate("remaining_movies")
+        .populate("eliminated_movies")
+        .populate("final_movies")
+        .populate("winner");
+    }
+
+    if (!updatedRoom) {
+      updatedRoom = await GameRoom.findOne({ code })
+        .populate("players", PLAYER_FIELDS)
+        .populate("remaining_movies")
+        .populate("eliminated_movies")
+        .populate("final_movies")
+        .populate("winner");
+    }
+
+    const final = await getFinalState(updatedRoom, userId);
+    res.status(200).json({ success: true, gameRoom: { ...asPlain(updatedRoom), final } });
   } catch (err) {
     next(err);
   }

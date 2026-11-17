@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { push, replace } from "svelte-spa-router";
   import MovieCard from "../components/MovieCard.svelte";
+  import TransitionCountdown from "../components/TransitionCountdown.svelte";
   import type { Movie } from "../lib/movies.svelte";
   import { banMovie, getRoom, leaveRoom, type GameRoom } from "../lib/rooms";
 
@@ -130,6 +131,10 @@
   {:else if !room}
     <p class="m-auto text-lg text-slate-600">Loading...</p>
   {:else}
+    {#if bans?.finished}
+      <TransitionCountdown endsAt={room.ban_reveal_until} label="Moving to the hype round" />
+    {/if}
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
       <div>
         <p class="text-xs font-semibold tracking-widest text-orange-700 uppercase">
@@ -176,9 +181,6 @@
         {/each}
       </ul>
 
-      <p class="mt-8 text-center text-sm text-neutral-500">
-        The ban round is over. Moving to the hype round...
-      </p>
     {:else if waiting}
       <!-- Bans are secret, so there is nothing to show but the progress. -->
       <div class="m-auto max-w-md rounded-3xl bg-stone-100 p-8 text-center shadow-lg">

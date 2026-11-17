@@ -467,6 +467,7 @@ describe("POST /api/game-rooms/:code/start", () => {
           hype_results: null,
           final_movies: [],
           final_starts_at: null,
+          ban_reveal_until: null,
         },
         $inc: { version: 1 },
       },
@@ -794,11 +795,16 @@ describe("POST /api/game-rooms/:code/ban", () => {
     );
   });
 
-  it("finishes the ban round and hands over to the hype round", async () => {
+  it("finishes the ban round and keeps the banned movies visible", async () => {
     findOne.mockReturnValue(mockQuery(playingRoom()));
     findOneAndUpdate
       .mockReturnValueOnce(banResponse())
-      .mockReturnValueOnce(mockQuery({ ...playingRoom(), currentRound: "hype", remaining_movies: pool.slice(1) }));
+      .mockReturnValueOnce(
+        mockQuery({
+          ...playingRoom({ remaining_movies: pool.slice(1), round_finished: true }),
+          ban_reveal_until: new Date(Date.now() + 10_000),
+        })
+      );
     createSubmission.mockResolvedValue({});
     countSubmissions.mockResolvedValue(2);
 
@@ -808,15 +814,14 @@ describe("POST /api/game-rooms/:code/ban", () => {
       .send({ movieId: banned.toString() });
 
     expect(res.status).toBe(200);
-    // the handover uses the same guard, so two last bans can't re-snapshot the players
+    // The second update saves the reveal deadline; the hype handover happens after it expires.
     expect(findOneAndUpdate).toHaveBeenCalledTimes(2);
     expect(findOneAndUpdate).toHaveBeenLastCalledWith(
       { _id: roomId, currentRound: "ban", round_finished: false },
       {
         $set: {
-          currentRound: "hype",
-          round_finished: false,
-          round_players: [hostId.toString(), otherId.toString()],
+          round_finished: true,
+          ban_reveal_until: expect.any(Date),
         },
         $inc: { version: 1 },
       },
@@ -824,15 +829,16 @@ describe("POST /api/game-rooms/:code/ban", () => {
     );
     expect(res.body.gameRoom.bans.finished).toBe(true);
     expect(res.body.gameRoom.status).toBe("playing");
-    expect(res.body.gameRoom.currentRound).toBe("hype");
+    expect(res.body.gameRoom.currentRound).toBe("ban");
+    expect(res.body.gameRoom.ban_reveal_until).toBeDefined();
   });
 
-  it("hands over to the hype round when the pool reaches the floor", async () => {
+  it("shows the ban reveal when the pool reaches its floor", async () => {
     const movies = pool.slice(0, 7);
     findOne.mockReturnValue(mockQuery(playingRoom({ remaining_movies: movies, round_players: [hostId, otherId, hostId] })));
     findOneAndUpdate
       .mockReturnValueOnce(banResponse(movies.slice(1)))
-      .mockReturnValueOnce(mockQuery({ ...playingRoom({ remaining_movies: movies.slice(1) }), currentRound: "hype" }));
+      .mockReturnValueOnce(mockQuery(playingRoom({ remaining_movies: movies.slice(1), round_finished: true })));
     createSubmission.mockResolvedValue({});
     countSubmissions.mockResolvedValue(1);
 
@@ -846,9 +852,8 @@ describe("POST /api/game-rooms/:code/ban", () => {
       { _id: roomId, currentRound: "ban", round_finished: false },
       {
         $set: {
-          currentRound: "hype",
-          round_finished: false,
-          round_players: [hostId.toString(), otherId.toString()],
+          round_finished: true,
+          ban_reveal_until: expect.any(Date),
         },
         $inc: { version: 1 },
       },
@@ -935,7 +940,7 @@ describe("GET /api/game-rooms/:code ban state", () => {
   });
 
   it("reveals the banned movies after the round, without who banned them", async () => {
-    findOne.mockReturnValue(mockQuery(playingRoom({ round_finished: true })));
+    findOne.mockReturnValue(mockQuery(playingRoom({ round_finished: true, ban_reveal_until: new Date(Date.now() + 10_000) })));
     countSubmissions.mockResolvedValue(2);
     findSubmissions.mockReturnValue(
       mockQuery([
@@ -952,6 +957,36 @@ describe("GET /api/game-rooms/:code ban state", () => {
       "B",
     ]);
     expect(res.body.gameRoom.bans.banned_movies[0]).not.toHaveProperty("player");
+  });
+
+  it("moves to the hype round after the ban reveal deadline", async () => {
+    const finishedBanRoom = playingRoom({
+      round_finished: true,
+      ban_reveal_until: new Date(Date.now() - 1),
+    });
+    const hypeRoom = { ...finishedBanRoom, currentRound: "hype", round_finished: false };
+    findOne.mockReturnValue(mockQuery(finishedBanRoom));
+    findOneAndUpdate.mockReturnValue(mockQuery(hypeRoom));
+    countSubmissions.mockResolvedValue(0);
+
+    const res = await request(app).get("/api/game-rooms/ABCDEF").set("Cookie", authCookie(hostId));
+
+    expect(res.status).toBe(200);
+    expect(findOneAndUpdate).toHaveBeenCalledWith(
+      {
+        _id: roomId,
+        currentRound: "ban",
+        round_finished: true,
+        ban_reveal_until: { $lte: expect.any(Date) },
+      },
+      {
+        $set: { currentRound: "hype", round_finished: false, round_players: [hostId.toString(), otherId.toString()] },
+        $inc: { version: 1 },
+      },
+      { new: true }
+    );
+    expect(res.body.gameRoom.currentRound).toBe("hype");
+    expect(res.body.gameRoom.hype).toBeDefined();
   });
 
   it("does not look at bans while the room is still a lobby", async () => {

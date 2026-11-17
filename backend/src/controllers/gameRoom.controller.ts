@@ -24,6 +24,7 @@ const MAX_CODE_ATTEMPTS = 5;
 export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 8;
 const FINAL_DELAY_MS = 10_000;
+const BAN_REVEAL_MS = 10_000;
 
 // what the client gets back about the people in a room (no email, no password)
 const PLAYER_FIELDS = "name username";
@@ -367,6 +368,51 @@ export const getGameRoom = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    // Keep the ban reveal open for ten seconds before handing over to hype.
+    if (
+      foundRoom.status === "playing" &&
+      foundRoom.currentRound === "ban" &&
+      foundRoom.round_finished &&
+      foundRoom.ban_reveal_until &&
+      new Date(foundRoom.ban_reveal_until).getTime() <= Date.now()
+    ) {
+      const transitionedRoom: any = await GameRoom.findOneAndUpdate(
+        {
+          _id: foundRoom._id,
+          currentRound: "ban",
+          round_finished: true,
+          ban_reveal_until: { $lte: new Date() },
+        },
+        {
+          $set: {
+            currentRound: "hype",
+            round_finished: false,
+            round_players: foundRoom.players.map(playerIdOf),
+          },
+          $inc: { version: 1 },
+        },
+        { new: true }
+      )
+        .populate("host", PLAYER_FIELDS)
+        .populate("players", PLAYER_FIELDS)
+        .populate("remaining_movies")
+        .populate("eliminated_movies")
+        .populate("final_movies")
+        .populate("winner");
+
+      if (transitionedRoom) {
+        foundRoom = transitionedRoom;
+      } else {
+        foundRoom = await GameRoom.findOne({ _id: foundRoom._id })
+          .populate("host", PLAYER_FIELDS)
+          .populate("players", PLAYER_FIELDS)
+          .populate("remaining_movies")
+          .populate("eliminated_movies")
+          .populate("final_movies")
+          .populate("winner");
+      }
+    }
+
     // The final starts ten seconds after the hype results are saved. The persisted timestamp
     // keeps the transition consistent for players who refresh or join the room late.
     if (
@@ -566,6 +612,7 @@ export const startGameRoom = async (req: Request, res: Response, next: NextFunct
           hype_results: null,
           final_movies: [],
           final_starts_at: null,
+          ban_reveal_until: null,
         },
         $inc: { version: 1 },
       },
@@ -696,16 +743,13 @@ export const banMovie = async (req: Request, res: Response, next: NextFunction) 
     );
 
     if (finished) {
-      // the ban round hands over to the hype round in the same update, so nobody sits between
-      // rounds. The guard makes sure only one ban can re-snapshot the players
-      const nextRoom: any = await GameRoom.findOneAndUpdate(
+      // Save the reveal deadline once so every player sees the same ten-second window.
+      const finishedRoom: any = await GameRoom.findOneAndUpdate(
         { _id: foundRoom._id, currentRound: "ban", round_finished: false },
         {
           $set: {
-            currentRound: "hype",
-            round_finished: false,
-            // only the players still in the room owe points, so a leaver doesn't block hype
-            round_players: roomAfterBan.players.map((player: any) => playerIdOf(player)),
+            round_finished: true,
+            ban_reveal_until: new Date(Date.now() + BAN_REVEAL_MS),
           },
           $inc: { version: 1 },
         },
@@ -714,12 +758,10 @@ export const banMovie = async (req: Request, res: Response, next: NextFunction) 
         .populate("players", PLAYER_FIELDS)
         .populate("remaining_movies");
 
-      if (nextRoom) {
-        // the ban reveal is still part of this response, the room just already says hype
-        const bans = await getBanState(roomAfterBan, userId, true);
-        res.status(200).json({ success: true, gameRoom: { ...asPlain(nextRoom), bans } });
-        return;
-      }
+      const revealRoom = finishedRoom ?? roomAfterBan;
+      const bans = await getBanState(revealRoom, userId, true);
+      res.status(200).json({ success: true, gameRoom: { ...asPlain(revealRoom), bans } });
+      return;
     }
 
     const bans = await getBanState(roomAfterBan, userId, finished);

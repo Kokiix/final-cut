@@ -70,6 +70,7 @@ export interface GameRoom {
   currentRound: "ban" | "hype" | "headToHead" | "wildcard" | "final";
   round_finished: boolean;
   final_starts_at?: string | null;
+  ban_reveal_until?: string | null;
   eliminated_movies?: Movie[]; // hype cuts, kept for a possible revival round
   bans?: BanState; // only sent while the room is playing the ban round
   hype?: HypeState; // only sent while the room is playing the hype round

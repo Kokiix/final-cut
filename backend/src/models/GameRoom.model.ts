@@ -82,6 +82,10 @@ const gameRoomSchema = new Schema(
       type: Date,
       default: null
     },
+    ban_reveal_until: {
+      type: Date,
+      default: null
+    },
     // the round being played, see ROUNDS above
     currentRound: {
       type: String,
